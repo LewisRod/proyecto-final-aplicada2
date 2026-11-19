@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import { loggerMiddleware } from "./middlewares/logger.middleware.js";
 
 const app = express();
 
