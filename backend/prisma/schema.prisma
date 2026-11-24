@@ -1,7 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
   provider = "prisma-client-js"
@@ -11,10 +7,185 @@ datasource db {
   provider = "postgresql"
 }
 
-model Usuario{
-  id Int @id @default(autoincrement())
-  nombre String
-  email String @unique
-  password String
-  rol String @default("cliente")
+// ============================================================================
+// Enums
+// ============================================================================
+
+enum Rol {
+  admin
+  cliente
+
+  @@map("rol")
+}
+
+enum EstadoVehiculo {
+  available
+  in_use
+  maintenance
+
+  @@map("estado_vehiculo")
+}
+
+/// Flujo: pendiente -> pendiente_pago (por pagar, 48 h) -> confirmada (pagada)
+/// -> activa (en curso) -> finalizada. cancelada desde las tres primeras.
+enum EstadoReserva {
+  pendiente
+  pendiente_pago
+  confirmada
+  activa
+  finalizada
+  cancelada
+
+  @@map("estado_reserva")
+}
+
+enum MetodoPago {
+  Efectivo
+  Transferencia
+  Tarjeta
+
+  @@map("metodo_pago")
+}
+
+/// pendiente = reportado por el cliente, en revisión del dueño.
+enum EstadoPago {
+  pendiente
+  completado
+  fallido
+  reembolsado
+
+  @@map("estado_pago")
+}
+
+// ============================================================================
+// Modelos
+// ============================================================================
+
+/// Reemplaza auth.users + public.profiles de Supabase.
+model Usuario {
+  id        String  @id @default(uuid()) @db.Uuid
+  nombre    String
+  email     String  @unique
+  /// Hash bcrypt (bcryptjs). Nunca la contraseña en texto plano.
+  password  String
+  rol       Rol     @default(cliente)
+  telefono  String? @map("phone")
+  avatarUrl String? @map("avatar_url")
+
+  /// Datos bancarios del dueño de flota (los ven sus clientes al pagar).
+  banco         String?
+  tipoCuenta    String? @map("tipo_cuenta")
+  numeroCuenta  String? @map("numero_cuenta")
+  titularCuenta String? @map("titular_cuenta")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  vehiculos    Vehiculo[]
+  reservas     Reserva[]
+  pagosCreados Pago[]
+  favoritos    Favorito[]
+
+  @@map("usuarios")
+}
+
+model Vehiculo {
+  id           String         @id @default(uuid()) @db.Uuid
+  /// Dueño de flota (admin). Null si se borró su cuenta.
+  createdById  String?        @map("created_by") @db.Uuid
+  nombre       String?
+  plate        String         @unique
+  brand        String
+  model        String
+  year         Int
+  color        String?
+  seats        Int?           @default(5)
+  status       EstadoVehiculo @default(available)
+  transmission String         @default("Automático")
+  fuelType     String         @default("Gasolina") @map("fuel_type")
+  category     String         @default("Sedán")
+  dailyPrice   Decimal        @default(0) @map("daily_price") @db.Decimal(10, 2)
+  notes        String?
+  imageUrls    String[]       @default([]) @map("image_urls")
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  createdBy Usuario?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  reservas  Reserva[]
+  favoritos Favorito[]
+
+  @@index([createdById])
+  @@index([status])
+  @@map("vehicles")
+}
+
+model Reserva {
+  id           String        @id @default(uuid()) @db.Uuid
+  /// Correlativo PKR-AAAA-NNNN.
+  numero       String        @unique
+  vehicleId    String        @map("vehicle_id") @db.Uuid
+  /// Null si reservó como invitado (sin cuenta).
+  clientId     String?       @map("client_id") @db.Uuid
+  clientName   String        @map("client_name")
+  clientEmail  String?       @map("client_email")
+  clientPhone  String?       @map("client_phone")
+  startDate    DateTime      @map("start_date") @db.Date
+  endDate      DateTime      @map("end_date") @db.Date
+  /// Noches entre recogida y devolución (≥ 1).
+  days         Int
+  dailyPrice   Decimal       @map("daily_price") @db.Decimal(10, 2)
+  totalPrice   Decimal       @map("total_price") @db.Decimal(10, 2)
+  status       EstadoReserva @default(pendiente)
+  /// Plazo para pagar una reserva aceptada (pendiente_pago).
+  paymentDueAt DateTime?     @map("payment_due_at") @db.Timestamptz(6)
+  notes        String?
+  location     String?
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  vehiculo Vehiculo @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  cliente  Usuario? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  pagos    Pago[]
+
+  @@index([vehicleId])
+  @@index([clientId])
+  @@index([status])
+  @@map("reservations")
+}
+
+model Pago {
+  id              String     @id @default(uuid()) @db.Uuid
+  reservationId   String     @map("reservation_id") @db.Uuid
+  monto           Decimal    @db.Decimal(10, 2)
+  metodoPago      MetodoPago @map("metodo_pago")
+  estado          EstadoPago @default(pendiente)
+  referencia      String?
+  notas           String?
+  /// Ruta del comprobante en Object Storage.
+  comprobantePath String?    @map("comprobante_path")
+  motivoRechazo   String?    @map("motivo_rechazo")
+  createdById     String?    @map("created_by") @db.Uuid
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  reserva   Reserva  @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  createdBy Usuario? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([reservationId])
+  @@index([estado])
+  @@map("pagos")
+}
+
+model Favorito {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  vehicleId String   @map("vehicle_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  usuario  Usuario  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehiculo Vehiculo @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, vehicleId])
+  @@index([vehicleId])
+  @@map("favorites")
 }
