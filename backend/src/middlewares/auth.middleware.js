@@ -64,7 +64,6 @@ export const validarEmail = (req, res, next) => {
   next();
 };
 
-// Solo para el registro: las mismas reglas que el formulario del frontend.
 export const validarPassword = (req, res, next) => {
   const password = req.body?.password;
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
@@ -78,7 +77,6 @@ export const validarPassword = (req, res, next) => {
   next();
 };
 
-// Para el login: no aplica las reglas de fortaleza a contraseñas ya creadas.
 export const requerirPassword = (req, res, next) => {
   const password = req.body?.password;
 
