@@ -59,7 +59,6 @@ backend/
 | POST | `/auth/register` | Registrar un cliente | Público |
 | POST | `/auth/login` | Iniciar sesión | Público |
 | GET | `/auth/session` | Obtener usuario y sesión actual | Autenticado |
-| POST | `/auth/logout` | Cerrar sesión | Autenticado |
 
 
 
