@@ -10,6 +10,6 @@ export default defineConfig({
   datasource: {
     // Las migraciones usan la conexión directa de Neon (sin pooler).
     // La API en ejecución usa DATABASE_URL (con pooler) desde src/db.js.
-    url: env("DIRECT_URL"),
+    url: env("DATABASE_URL"),
   },
 });

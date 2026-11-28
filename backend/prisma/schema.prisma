@@ -170,7 +170,7 @@ model Pago {
 
   reserva   Reserva  @relation(fields: [reservationId], references: [id], onDelete: Cascade)
   createdBy Usuario? @relation(fields: [createdById], references: [id], onDelete: SetNull)
-
+ 
   @@index([reservationId])
   @@index([estado])
   @@map("pagos")

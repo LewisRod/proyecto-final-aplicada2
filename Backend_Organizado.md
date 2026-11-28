@@ -115,16 +115,13 @@ backend/
 
 ### 2.6 Pagos — `/pagos`
 
-| Método | Endpoint | Descripción | Acceso |
-|---|---|---|---|
-| GET | `/pagos` | Listar pagos | ADMIN |
-| GET | `/pagos/:id` | Consultar pago específico | ADMIN |
-| GET | `/pagos/reserva/:reservaId` | Consultar pagos de una reserva | ADMIN |
-| POST | `/pagos` | Registrar pago | ADMIN |
-| PUT | `/pagos/:id/estado` | Cambiar estado del pago | ADMIN |
-| DELETE | `/pagos/:id` | Eliminar pago, si permitido | ADMIN |
-| GET | `/pagos/ingresos/mensuales` | Consultar ingresos mensuales | ADMIN |
 
+Método	Endpoint	            Función                                         	    Rol autorizado
+GET	    /api/pagos	            El administrador lista los pagos de sus reservas.	    ADMIN
+POST	/api/pagos	            El cliente reporta su pago (transferencia o efectivo).	CLIENTE
+PUT	/api/pagos/:id/confirmar	El administrador confirma el pago.	                ADMIN
+PUT	/api/pagos/:id/rechazar	    El administrador rechaza el pago reportado.	            ADMIN
+GET	/api/pagos/mis-pagos	        El cliente consulta sus pagos.	                            CLIENTE
 
 
 
